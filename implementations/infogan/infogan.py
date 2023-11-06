@@ -6,6 +6,7 @@ import itertools
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
+from torch.utils.data import Subset
 
 from torch.utils.data import DataLoader
 from torchvision import datasets
@@ -20,7 +21,7 @@ os.makedirs("images/varying_c1/", exist_ok=True)
 os.makedirs("images/varying_c2/", exist_ok=True)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=20, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
@@ -147,15 +148,24 @@ discriminator.apply(weights_init_normal)
 
 # Configure data loader
 os.makedirs("../../data/mnist", exist_ok=True)
-dataloader = torch.utils.data.DataLoader(
-    datasets.MNIST(
-        "../../data/mnist",
-        train=True,
-        download=True,
-        transform=transforms.Compose(
-            [transforms.Resize(opt.img_size), transforms.ToTensor(), transforms.Normalize([0.5], [0.5])]
-        ),
+
+mnist_dataset = datasets.MNIST(
+    "../../data/mnist",
+    train=True,
+    download=True,
+    transform=transforms.Compose(
+        [transforms.Resize(opt.img_size), transforms.ToTensor(), transforms.Normalize([0.5], [0.5])]
     ),
+)
+
+# Let's say you want to use only 10% of the dataset:
+num_samples = len(mnist_dataset)
+subset_indices = np.random.choice(range(num_samples), size=int(0.1 * num_samples), replace=False)
+
+mnist_subset = Subset(mnist_dataset, subset_indices)
+
+dataloader = torch.utils.data.DataLoader(
+    mnist_subset,
     batch_size=opt.batch_size,
     shuffle=True,
 )
