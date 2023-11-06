@@ -205,6 +205,39 @@ def sample_image(n_row, batches_done):
     save_image(sample1.data, "images/varying_c1/%d.png" % batches_done, nrow=n_row, normalize=True)
     save_image(sample2.data, "images/varying_c2/%d.png" % batches_done, nrow=n_row, normalize=True)
 
+# ----------
+#  Added code
+# ----------
+
+def generate_with_style_variation(generator, style_range=(-1, 1), num_samples=1000):
+    augmented_samples = []
+
+    for _ in range(num_samples):
+        # Sample noise
+        z = Variable(torch.randn(opt.latent_dim)).unsqueeze(0)
+
+        # Sample a random label (digit)
+        label = to_categorical(np.random.randint(0, opt.n_classes, 1), num_columns=opt.n_classes)
+
+        # Vary the style code within the specified range
+        style_code = np.random.uniform(style_range[0], style_range[1], (1, opt.code_dim))
+        style_code = Variable(torch.FloatTensor(style_code))
+
+        # Generate the image
+        gen_img = generator(z, label, style_code)
+        augmented_samples.append(gen_img)
+
+    return augmented_samples
+
+# Generate 10 images with varying styles
+generated_images = generate_with_styles(generator, n_samples=10)
+
+# Save the generated images
+save_path = "generated_images_with_styles"
+os.makedirs(save_path, exist_ok=True)
+
+# for idx, image in enumerate(generated_images):
+#    save_image(image, os.path.join(save_path, f"image_{idx}.png"))
 
 # ----------
 #  Training
