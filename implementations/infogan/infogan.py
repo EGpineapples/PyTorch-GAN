@@ -230,7 +230,7 @@ def generate_with_style_variation(generator, style_range=(-1, 1), num_samples=10
     return augmented_samples
 
 # Generate 10 images with varying styles
-generated_images = generate_with_styles(generator, n_samples=10)
+generated_images = generate_with_style_variation(generator, n_samples=10)
 
 # Save the generated images
 save_path = "generated_images_with_styles"
