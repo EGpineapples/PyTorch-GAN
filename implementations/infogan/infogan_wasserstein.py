@@ -177,6 +177,7 @@ optimizer_info = torch.optim.Adam(
     itertools.chain(generator.parameters(), discriminator.parameters()), lr=opt.lr, betas=(opt.b1, opt.b2)
 )
 
+Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 
