@@ -240,6 +240,23 @@ os.makedirs(save_path, exist_ok=True)
 #    save_image(image, os.path.join(save_path, f"image_{idx}.png"))
 
 # ----------
+#  Added Code
+# ----------
+
+def jensen_shannon_divergence(real_logits, fake_logits):
+    # Calculate the average logits between real and fake
+    m = 0.5 * (real_logits + fake_logits)
+    
+    # Calculate the divergences
+    kl_div_real = F.kl_div(F.log_softmax(real_logits, dim=1), F.softmax(m, dim=1), reduction='batchmean')
+    kl_div_fake = F.kl_div(F.log_softmax(fake_logits, dim=1), F.softmax(m, dim=1), reduction='batchmean')
+    
+    # Jensen-Shannon divergence is the average of the KL divergences
+    js_divergence = 0.5 * (kl_div_real + kl_div_fake)
+    
+    return js_divergence
+
+# ----------
 #  Training
 # ----------
 
@@ -284,19 +301,39 @@ for epoch in range(opt.n_epochs):
         optimizer_D.zero_grad()
 
         # Loss for real images
+        # real_pred, _, _ = discriminator(real_imgs)
+        # d_real_loss = adversarial_loss(real_pred, valid)
+
+        # Loss for fake images
+        # fake_pred, _, _ = discriminator(gen_imgs.detach())
+        # d_fake_loss = adversarial_loss(fake_pred, fake)
+
+        # Total discriminator loss
+        # d_loss = (d_real_loss + d_fake_loss) / 2
+
+        # d_loss.backward()
+        # optimizer_D.step()
+
+        # ---------------------
+        #  Train Discriminator
+        # ---------------------
+
+        optimizer_D.zero_grad()
+
+        # Loss for real images
         real_pred, _, _ = discriminator(real_imgs)
-        d_real_loss = adversarial_loss(real_pred, valid)
+        # d_real_loss = adversarial_loss(real_pred, valid)
 
         # Loss for fake images
         fake_pred, _, _ = discriminator(gen_imgs.detach())
-        d_fake_loss = adversarial_loss(fake_pred, fake)
+        # d_fake_loss = adversarial_loss(fake_pred, fake)
 
         # Total discriminator loss
-        d_loss = (d_real_loss + d_fake_loss) / 2
+        d_loss = jensen_shannon_divergence(real_pred, fake_pred)
 
         d_loss.backward()
         optimizer_D.step()
-
+        
         # ------------------
         # Information Loss
         # ------------------
