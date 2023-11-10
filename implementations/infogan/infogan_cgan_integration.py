@@ -78,22 +78,22 @@ class Generator(nn.Module):
             nn.Tanh(),
         )
 
-def forward(self, noise, labels, code):
-        # Debugging: Print the size, type, and content of the labels
-        print("Labels - Size:", labels.size())
-        print("Labels - Type:", labels.dtype)
-        print("Labels - Content:", labels)
-    
-        # Embed the labels and ensure correct shape
-        labels_embed = self.label_emb(labels).view(labels.size(0), -1)
-    
-        # Concatenate noise, embedded labels, and code
-        gen_input = torch.cat((noise, labels_embed, code), -1)
-    
-        out = self.l1(gen_input)
-        out = out.view(out.shape[0], 128, self.init_size, self.init_size)
-        img = self.conv_blocks(out)
-        return img
+    def forward(self, noise, labels, code):
+            # Debugging: Print the size, type, and content of the labels
+            print("Labels - Size:", labels.size())
+            print("Labels - Type:", labels.dtype)
+            print("Labels - Content:", labels)
+        
+            # Embed the labels and ensure correct shape
+            labels_embed = self.label_emb(labels).view(labels.size(0), -1)
+        
+            # Concatenate noise, embedded labels, and code
+            gen_input = torch.cat((noise, labels_embed, code), -1)
+        
+            out = self.l1(gen_input)
+            out = out.view(out.shape[0], 128, self.init_size, self.init_size)
+            img = self.conv_blocks(out)
+            return img
 
 
 class Discriminator(nn.Module):
