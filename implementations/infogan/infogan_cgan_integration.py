@@ -52,7 +52,7 @@ def to_categorical(y, num_columns):
     y_cat = np.zeros((y.shape[0], num_columns))
     y_cat[range(y.shape[0]), y] = 1.0
 
-    return Variable(FloatTensor(y_cat))
+    return Variable(LongTensor(y_cat))  # Changed to LongTensor
 
 class Generator(nn.Module):
     def __init__(self):
@@ -224,15 +224,16 @@ def generate_with_style_variation(generator, style_range=(-1, 1), num_samples=10
         # Sample noise
         z = Variable(torch.randn(opt.latent_dim)).unsqueeze(0)
 
-        # Sample a random label (digit)
-        label = to_categorical(np.random.randint(0, opt.n_classes, 1), num_columns=opt.n_classes)
+        # Sample a random label (digit) and convert to LongTensor
+        label = np.random.randint(0, opt.n_classes, 1)
+        label_tensor = Variable(LongTensor(label))  # Convert to LongTensor
 
         # Vary the style code within the specified range
         style_code = np.random.uniform(style_range[0], style_range[1], (1, opt.code_dim))
         style_code = Variable(torch.FloatTensor(style_code))
 
         # Generate the image
-        gen_img = generator(z, label, style_code)
+        gen_img = generator(z, label_tensor, style_code)
         augmented_samples.append(gen_img)
 
     return augmented_samples
