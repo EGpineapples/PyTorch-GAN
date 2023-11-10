@@ -146,6 +146,9 @@ if cuda:
 generator.apply(weights_init_normal)
 discriminator.apply(weights_init_normal)
 
+# ----------
+#  ORIGINAL MNIST DATASET
+# ----------
 # Configure data loader
 os.makedirs("../../data/mnist", exist_ok=True)
 
@@ -159,15 +162,53 @@ mnist_dataset = datasets.MNIST(
 )
 
 # Let's say you want to use only 10% of the dataset:
-num_samples = len(mnist_dataset)
+# num_samples = len(mnist_dataset)
+# subset_indices = np.random.choice(range(num_samples), size=int(0.1 * num_samples), replace=False)
+
+# mnist_subset = Subset(mnist_dataset, subset_indices)
+
+# dataloader = torch.utils.data.DataLoader(
+#     mnist_subset,
+#     batch_size=opt.batch_size,
+#    shuffle=True,
+# )
+
+# Update these options as per your requirements
+opt = {
+    'img_size': 32,  # CIFAR10 images are 32x32
+    'batch_size': 64  # Adjust the batch size if needed
+}
+
+# Transformations
+transform = transforms.Compose([
+    transforms.Resize(opt['img_size']),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))  # Normalizing for RGB channels
+])
+
+
+# ----------
+#  CIFAR10 DATASET
+# ----------
+
+# Configure data loader for CIFAR10
+os.makedirs("../../data/cifar10", exist_ok=True)
+cifar10_dataset = datasets.CIFAR10(
+    root='../../data/cifar10',
+    train=True,
+    download=True,
+    transform=transform
+)
+
+# If you want to use only 10% of the dataset
+num_samples = len(cifar10_dataset)
 subset_indices = np.random.choice(range(num_samples), size=int(0.1 * num_samples), replace=False)
+cifar10_subset = Subset(cifar10_dataset, subset_indices)
 
-mnist_subset = Subset(mnist_dataset, subset_indices)
-
-dataloader = torch.utils.data.DataLoader(
-    mnist_subset,
-    batch_size=opt.batch_size,
-    shuffle=True,
+dataloader = DataLoader(
+    cifar10_subset,
+    batch_size=opt['batch_size'],
+    shuffle=True
 )
 
 # Optimizers
