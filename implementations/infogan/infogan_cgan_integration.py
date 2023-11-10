@@ -59,7 +59,7 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
 
         self.label_emb = nn.Embedding(opt.n_classes, opt.n_classes)
-
+    
         input_dim = opt.latent_dim + opt.n_classes + opt.code_dim
         self.init_size = opt.img_size // 4  # Initial size before upsampling
         self.l1 = nn.Sequential(nn.Linear(input_dim, 128 * self.init_size ** 2))
@@ -79,10 +79,10 @@ class Generator(nn.Module):
         )
 
     def forward(self, noise, labels, code):
-        # Embed the labels
-        labels_embed = self.label_emb(labels)
-    
-        # Concatenate label embedding, noise, and code
+        labels_embed = self.label_emb(labels).view(labels.size(0), -1)
+        print("Noise size:", noise.size())  # Debugging
+        print("Labels size:", labels_embed.size())  # Debugging
+        print("Code size:", code.size())  # Debugging
         gen_input = torch.cat((noise, labels_embed, code), -1)
     
         out = self.l1(gen_input)
