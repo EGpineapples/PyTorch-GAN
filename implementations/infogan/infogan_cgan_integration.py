@@ -58,12 +58,16 @@ class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
 
-        self.label_emb = nn.Embedding(opt.n_classes, opt.n_classes)
+        # Assuming self.init_size and input_dim for self.l1 are predefined or calculated
+        self.init_size = opt.img_size // 4
+        input_dim_for_l1 = 128 * self.init_size ** 2  # Example, adjust as per your model
 
-        input_dim = opt.latent_dim + opt.n_classes + opt.code_dim  # Adjust input dimensions
+        # Calculate the label embedding dimension dynamically
+        label_embedding_dim = input_dim_for_l1 - (opt.latent_dim + opt.code_dim)
 
-        self.init_size = opt.img_size // 4  # Initial size before upsampling
-        self.l1 = nn.Sequential(nn.Linear(input_dim, 128 * self.init_size ** 2))
+        self.label_emb = nn.Embedding(opt.n_classes, label_embedding_dim)
+
+        self.l1 = nn.Sequential(nn.Linear(input_dim_for_l1, 128 * self.init_size ** 2))
 
         self.conv_blocks = nn.Sequential(
             nn.BatchNorm2d(128),
@@ -81,11 +85,6 @@ class Generator(nn.Module):
 
     def forward(self, noise, labels, code):
         labels_embed = self.label_emb(labels).view(labels.size(0), -1)
-    
-        # Print dimensions for debugging
-        print("Noise dim:", noise.shape, "Labels dim:", labels_embed.shape, "Code dim:", code.shape)
-
-        # Concatenate label embedding, noise, and code
         gen_input = torch.cat((noise, labels_embed, code), -1)
         out = self.l1(gen_input)
         out = out.view(out.shape[0], 128, self.init_size, self.init_size)
