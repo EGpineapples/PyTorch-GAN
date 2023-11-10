@@ -264,22 +264,23 @@ for epoch in range(opt.n_epochs):
         real_imgs = Variable(imgs.type(FloatTensor))
         labels = to_categorical(labels.numpy(), num_columns=opt.n_classes)
 
-        # -----------------
+        # ---------------------
         #  Train Generator
-        # -----------------
+        # ---------------------
 
         optimizer_G.zero_grad()
 
-        # Sample noise and labels as generator input
+        # Sample noise, labels, and code as generator input
         z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
-        label_input = to_categorical(np.random.randint(0, opt.n_classes, batch_size), num_columns=opt.n_classes)
+        gen_labels = Variable(LongTensor(np.random.randint(0, opt.n_classes, batch_size)))
+        label_input = to_categorical(gen_labels.numpy(), num_columns=opt.n_classes)
         code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.code_dim))))
 
         # Generate a batch of images
         gen_imgs = generator(z, label_input, code_input)
 
         # Loss measures generator's ability to fool the discriminator
-        validity, _, _ = discriminator(gen_imgs)
+        validity = discriminator(gen_imgs, gen_labels)[0]
         g_loss = adversarial_loss(validity, valid)
 
         g_loss.backward()
@@ -292,11 +293,11 @@ for epoch in range(opt.n_epochs):
         optimizer_D.zero_grad()
 
         # Loss for real images
-        real_pred, _, _ = discriminator(real_imgs)
+        real_pred = discriminator(real_imgs, labels)[0]
         d_real_loss = adversarial_loss(real_pred, valid)
 
         # Loss for fake images
-        fake_pred, _, _ = discriminator(gen_imgs.detach())
+        fake_pred = discriminator(gen_imgs.detach(), gen_labels)[0]
         d_fake_loss = adversarial_loss(fake_pred, fake)
 
         # Total discriminator loss
@@ -311,21 +312,18 @@ for epoch in range(opt.n_epochs):
 
         optimizer_info.zero_grad()
 
-        # Sample labels
-        sampled_labels = np.random.randint(0, opt.n_classes, batch_size)
+        # Sample labels for information loss
+        sampled_labels = Variable(LongTensor(np.random.randint(0, opt.n_classes, batch_size)), requires_grad=False)
 
-        # Ground truth labels
-        gt_labels = Variable(LongTensor(sampled_labels), requires_grad=False)
-
-        # Sample noise, labels and code as generator input
+        # Sample noise, labels, and code as generator input
         z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
-        label_input = to_categorical(sampled_labels, num_columns=opt.n_classes)
+        label_input = to_categorical(sampled_labels.numpy(), num_columns=opt.n_classes)
         code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.code_dim))))
 
         gen_imgs = generator(z, label_input, code_input)
         _, pred_label, pred_code = discriminator(gen_imgs)
 
-        info_loss = lambda_cat * categorical_loss(pred_label, gt_labels) + lambda_con * continuous_loss(
+        info_loss = lambda_cat * categorical_loss(pred_label, sampled_labels) + lambda_con * continuous_loss(
             pred_code, code_input
         )
 
@@ -340,6 +338,7 @@ for epoch in range(opt.n_epochs):
             "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f] [info loss: %f]"
             % (epoch, opt.n_epochs, i, len(dataloader), d_loss.item(), g_loss.item(), info_loss.item())
         )
+
         batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
             sample_image(n_row=10, batches_done=batches_done)
