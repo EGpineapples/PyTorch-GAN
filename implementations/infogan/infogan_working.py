@@ -21,7 +21,7 @@ os.makedirs("images/varying_c1/", exist_ok=True)
 os.makedirs("images/varying_c2/", exist_ok=True)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=5, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
@@ -68,17 +68,14 @@ class Generator(nn.Module):
         self.conv_blocks = nn.Sequential(
             nn.BatchNorm2d(128),
             nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 256, 3, stride=1, padding=1),  # Increased filters
-            nn.BatchNorm2d(256, 0.8),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(256, 128, 3, stride=1, padding=1),  # More layers
+            nn.Conv2d(128, 128, 3, stride=1, padding=1),
             nn.BatchNorm2d(128, 0.8),
             nn.LeakyReLU(0.2, inplace=True),
+            nn.Upsample(scale_factor=2),
             nn.Conv2d(128, 64, 3, stride=1, padding=1),
             nn.BatchNorm2d(64, 0.8),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(64, 3, 3, stride=1, padding=1),  # Output 3 channels for RGB
+            nn.Conv2d(64, opt.channels, 3, stride=1, padding=1),
             nn.Tanh(),
         )
         
@@ -102,10 +99,10 @@ class Discriminator(nn.Module):
             return block
 
         self.conv_blocks = nn.Sequential(
-            *discriminator_block(3, 64, bn=False),  # Increased filters
-            nn.Dropout2d(0.25),
+            *discriminator_block(opt.channels, 16, bn=False),
+            *discriminator_block(16, 32),
+            *discriminator_block(32, 64),
             *discriminator_block(64, 128),
-            nn.Dropout2d(0.25)
         )
 
         # The height and width of downsampled image
@@ -200,7 +197,7 @@ cifar10_dataset = datasets.CIFAR10(
 
 # If you want to use only 10% of the dataset
 num_samples = len(cifar10_dataset)
-subset_indices = np.random.choice(range(num_samples), size=int(0.1 * num_samples), replace=False)
+subset_indices = np.random.choice(range(num_samples), size=int(0.3 * num_samples), replace=False)
 cifar10_subset = Subset(cifar10_dataset, subset_indices)
 
 dataloader = DataLoader(
