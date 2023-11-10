@@ -105,10 +105,6 @@ class Discriminator(nn.Module):
             *discriminator_block(3, 64, bn=False),  # Increased filters
             nn.Dropout2d(0.25),
             *discriminator_block(64, 128),
-            nn.Dropout2d(0.25),
-            *discriminator_block(128, 256),
-            nn.Dropout2d(0.25),
-            *discriminator_block(256, 512),
             nn.Dropout2d(0.25)
         )
 
