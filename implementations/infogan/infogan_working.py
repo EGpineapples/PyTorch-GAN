@@ -64,20 +64,24 @@ class Generator(nn.Module):
         self.init_size = opt.img_size // 4  # Initial size before upsampling
         self.l1 = nn.Sequential(nn.Linear(input_dim, 128 * self.init_size ** 2))
 
+       # More complex convolutions
         self.conv_blocks = nn.Sequential(
             nn.BatchNorm2d(128),
             nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 128, 3, stride=1, padding=1),
-            nn.BatchNorm2d(128, 0.8),
+            nn.Conv2d(128, 256, 3, stride=1, padding=1),  # Increased filters
+            nn.BatchNorm2d(256, 0.8),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Upsample(scale_factor=2),
+            nn.Conv2d(256, 128, 3, stride=1, padding=1),  # More layers
+            nn.BatchNorm2d(128, 0.8),
+            nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(128, 64, 3, stride=1, padding=1),
             nn.BatchNorm2d(64, 0.8),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(64, opt.channels, 3, stride=1, padding=1),
+            nn.Conv2d(64, 3, 3, stride=1, padding=1),  # Output 3 channels for RGB
             nn.Tanh(),
         )
-
+        
     def forward(self, noise, labels, code):
         gen_input = torch.cat((noise, labels, code), -1)
         out = self.l1(gen_input)
@@ -98,10 +102,14 @@ class Discriminator(nn.Module):
             return block
 
         self.conv_blocks = nn.Sequential(
-            *discriminator_block(opt.channels, 16, bn=False),
-            *discriminator_block(16, 32),
-            *discriminator_block(32, 64),
+            *discriminator_block(3, 64, bn=False),  # Increased filters
+            nn.Dropout2d(0.25),
             *discriminator_block(64, 128),
+            nn.Dropout2d(0.25),
+            *discriminator_block(128, 256),
+            nn.Dropout2d(0.25),
+            *discriminator_block(256, 512),
+            nn.Dropout2d(0.25)
         )
 
         # The height and width of downsampled image
