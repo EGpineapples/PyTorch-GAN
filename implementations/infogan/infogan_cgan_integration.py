@@ -80,8 +80,11 @@ class Generator(nn.Module):
         )
 
     def forward(self, noise, labels, code):
-        # Embed the labels
         labels_embed = self.label_emb(labels).view(labels.size(0), -1)
+    
+        # Print dimensions for debugging
+        print("Noise dim:", noise.shape, "Labels dim:", labels_embed.shape, "Code dim:", code.shape)
+
         # Concatenate label embedding, noise, and code
         gen_input = torch.cat((noise, labels_embed, code), -1)
         out = self.l1(gen_input)
