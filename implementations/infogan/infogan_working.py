@@ -163,16 +163,16 @@ mnist_dataset = datasets.MNIST(
 )
 
 # Let's say you want to use only 10% of the dataset:
-# num_samples = len(mnist_dataset)
-# subset_indices = np.random.choice(range(num_samples), size=int(0.1 * num_samples), replace=False)
+num_samples = len(mnist_dataset)
+subset_indices = np.random.choice(range(num_samples), size=int(0.1 * num_samples), replace=False)
 
-# mnist_subset = Subset(mnist_dataset, subset_indices)
+mnist_subset = Subset(mnist_dataset, subset_indices)
 
-# dataloader = torch.utils.data.DataLoader(
-#     mnist_subset,
-#     batch_size=opt.batch_size,
-#    shuffle=True,
-# )
+dataloader = torch.utils.data.DataLoader(
+    mnist_subset,
+    batch_size=opt.batch_size,
+    shuffle=True,
+)
 
 
 # ----------
@@ -180,31 +180,31 @@ mnist_dataset = datasets.MNIST(
 # ----------
 
 # Transformations
-transform = transforms.Compose([
-    transforms.Resize(opt.img_size),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))  # Normalizing for RGB channels
-])
+# transform = transforms.Compose([
+#    transforms.Resize(opt.img_size),
+#    transforms.ToTensor(),
+#    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))  # Normalizing for RGB channels
+#])
 
 # Configure data loader for CIFAR10
-os.makedirs("../../data/cifar10", exist_ok=True)
-cifar10_dataset = datasets.CIFAR10(
-    root='../../data/cifar10',
-    train=True,
-    download=True,
-    transform=transform
-)
+# os.makedirs("../../data/cifar10", exist_ok=True)
+# cifar10_dataset = datasets.CIFAR10(
+#    root='../../data/cifar10',
+#    train=True,
+#    download=True,
+#    transform=transform
+#)
 
 # If you want to use only 10% of the dataset
-num_samples = len(cifar10_dataset)
-subset_indices = np.random.choice(range(num_samples), size=int(0.3 * num_samples), replace=False)
-cifar10_subset = Subset(cifar10_dataset, subset_indices)
+# num_samples = len(cifar10_dataset)
+# subset_indices = np.random.choice(range(num_samples), size=int(0.3 * num_samples), replace=False)
+# cifar10_subset = Subset(cifar10_dataset, subset_indices)
 
-dataloader = DataLoader(
-    cifar10_subset,
-    batch_size=opt.batch_size,
-    shuffle=True
-)
+# dataloader = DataLoader(
+#    cifar10_subset,
+#    batch_size=opt.batch_size,
+#    shuffle=True
+#)
 
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
@@ -279,6 +279,8 @@ os.makedirs(save_path, exist_ok=True)
 #  Training
 # ----------
 
+g_losses = []
+d_losses = []
 for epoch in range(opt.n_epochs):
     for i, (imgs, labels) in enumerate(dataloader):
 
@@ -333,6 +335,10 @@ for epoch in range(opt.n_epochs):
         d_loss.backward()
         optimizer_D.step()
 
+        g_losses.append(g_loss.item())
+        d_losses.append(d_loss.item())
+
+
         # ------------------
         # Information Loss
         # ------------------
@@ -371,3 +377,15 @@ for epoch in range(opt.n_epochs):
         batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
             sample_image(n_row=10, batches_done=batches_done)
+
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10,5))
+plt.title("Generator and Discriminator Loss During Training")
+plt.plot(g_losses,label="G")
+plt.plot(d_losses,label="D")
+plt.xlabel("iterations")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+
