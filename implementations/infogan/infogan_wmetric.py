@@ -206,7 +206,9 @@ optimizer_C = torch.optim.RMSprop(C.parameters(), lr=lr)
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
-
+# ------------------
+# Training
+# ------------------
 
 for epoch in range(opt.n_epochs):
     for i, (imgs, _) in enumerate(dataloader):
@@ -221,8 +223,11 @@ for epoch in range(opt.n_epochs):
         optimizer_C.zero_grad()
 
         # Generate a batch of images
-        z = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], opt.latent_dim))))
-        fake_imgs = G(z).detach()
+        z = Variable(Tensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
+        label_input = to_categorical(np.random.randint(0, opt.n_classes, batch_size), num_columns=opt.n_classes)
+        code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.code_dim))))
+        fake_imgs = G(z, label_input, code_input).detach()
+
         # Real images
         real_validity = C(real_imgs)
         # Fake images
@@ -235,18 +240,11 @@ for epoch in range(opt.n_epochs):
         d_loss.backward()
         optimizer_C.step()
 
-        optimizer_G.zero_grad()
-
         # ---------------------
         #  Train Generator
         # ---------------------
         if i % n_critic == 0:
             optimizer_G.zero_grad()
-
-            # Generate noise, labels, and codes
-            z = Variable(Tensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
-            label_input = to_categorical(np.random.randint(0, opt.n_classes, batch_size), num_columns=opt.n_classes)
-            code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.code_dim))))
 
             # Generate a batch of images
             gen_imgs = G(z, label_input, code_input)
