@@ -207,7 +207,7 @@ optimizer_C = torch.optim.RMSprop(C.parameters(), lr=lr)
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
 # Training
-for epoch in range(n_epochs):
+for epoch in range(opt.n_epochs):
     for i, (imgs, _) in enumerate(dataloader):
 
         # Configure input
@@ -261,7 +261,7 @@ for epoch in range(n_epochs):
         optimizer_info.step()
 
         # Log Progress
-        print(f"[Epoch {epoch}/{n_epochs}] [Batch {i}/{len(dataloader)}] [D loss: {d_loss.item()}] [G loss: {g_loss.item()}]")
+        print(f"[Epoch {epoch}/{opt.n_epochs}] [Batch {i}/{len(dataloader)}] [D loss: {d_loss.item()}] [G loss: {g_loss.item()}]")
 
         batches_done = epoch * len(dataloader) + i
         if batches_done % sample_interval == 0:
