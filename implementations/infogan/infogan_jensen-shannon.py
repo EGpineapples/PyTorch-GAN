@@ -357,6 +357,7 @@ for epoch in range(opt.n_epochs):
         # Log Progress
         print(f"[Epoch {epoch}/{opt.n_epochs}] [Batch {i}/{len(dataloader)}] [D loss: {d_loss.item()}] [G loss: {g_loss.item()}] [Info loss: {info_loss.item()}] [JS Div: {js_div.item()}]")
 
+        batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
             sample_image(n_row=10, batches_done=batches_done)
 
