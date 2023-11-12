@@ -111,20 +111,6 @@ continuous_loss = torch.nn.MSELoss()
 lambda_cat = 1
 lambda_con = 0.1
 
-# Initialize generator and discriminator
-generator = Generator()
-discriminator = Discriminator()
-
-if cuda:
-    generator.cuda()
-    discriminator.cuda()
-    categorical_loss.cuda()
-    continuous_loss.cuda()
-
-# Initialize weights
-generator.apply(weights_init_normal)
-discriminator.apply(weights_init_normal)
-
 # Configure data loader
 os.makedirs("../../data/mnist", exist_ok=True)
 
@@ -281,13 +267,6 @@ for epoch in range(n_epochs):
         optimizer_info.step()
 
         # Log Progress
-        print(f"[Epoch {epoch}/{opt.n_epochs}] [Batch {i}/{len(dataloader)}] [D loss: {d_loss.item()}] [G loss: {g_loss.item()}] [Info loss: {info_loss.item()}] [JS Div: {js_div.item()}]")
-
-        batches_done = epoch * len(dataloader) + i
-        if batches_done % opt.sample_interval == 0:
-            sample_image(n_row=10, batches_done=batches_done)
-
-        
         print(f"[Epoch {epoch}/{n_epochs}] [Batch {i}/{len(dataloader)}] [D loss: {d_loss.item()}] [G loss: {g_loss.item()}]")
 
         batches_done = epoch * len(dataloader) + i
