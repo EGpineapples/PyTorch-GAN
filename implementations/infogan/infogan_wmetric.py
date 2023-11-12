@@ -3,6 +3,8 @@ import os
 import numpy as np
 import math
 import itertools
+import torch.autograd as autograd  # Used in compute_gradient_penalty
+
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
@@ -184,6 +186,7 @@ def compute_gradient_penalty(critic, real_samples, fake_samples):
 # Hyperparameters
 lr = 0.00005
 lambda_gp = 10  # Gradient penalty lambda hyperparameter
+n_critic = 5  # Number of critic updates per generator update
 
 # Initialize generator and critic
 G = Generator()
