@@ -206,12 +206,14 @@ optimizer_C = torch.optim.RMSprop(C.parameters(), lr=lr)
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
-# Training
+
+
 for epoch in range(opt.n_epochs):
     for i, (imgs, _) in enumerate(dataloader):
 
         # Configure input
         real_imgs = Variable(imgs.type(Tensor))
+        batch_size = imgs.size(0)
 
         # ---------------------
         #  Train Critic
@@ -235,13 +237,20 @@ for epoch in range(opt.n_epochs):
 
         optimizer_G.zero_grad()
 
-        # Train the generator every n_critic steps
+        # ---------------------
+        #  Train Generator
+        # ---------------------
         if i % n_critic == 0:
-            # -----------------
-            #  Train Generator
-            # -----------------
+            optimizer_G.zero_grad()
+
+            # Generate noise, labels, and codes
+            z = Variable(Tensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
+            label_input = to_categorical(np.random.randint(0, opt.n_classes, batch_size), num_columns=opt.n_classes)
+            code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.code_dim))))
+
             # Generate a batch of images
-            gen_imgs = G(z)
+            gen_imgs = G(z, label_input, code_input)
+
             # Loss measures generator's ability to fool the critic
             g_loss = -torch.mean(C(gen_imgs))
 
@@ -264,5 +273,5 @@ for epoch in range(opt.n_epochs):
         print(f"[Epoch {epoch}/{opt.n_epochs}] [Batch {i}/{len(dataloader)}] [D loss: {d_loss.item()}] [G loss: {g_loss.item()}]")
 
         batches_done = epoch * len(dataloader) + i
-        if batches_done % sample_interval == 0:
+        if batches_done % opt.sample_interval == 0:
             save_image(gen_imgs.data[:25], "images/%d.png" % batches_done, nrow=5, normalize=True)
