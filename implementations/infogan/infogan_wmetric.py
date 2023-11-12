@@ -135,13 +135,6 @@ dataloader = torch.utils.data.DataLoader(
     shuffle=True,
 )
 
-# Optimizers
-optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
-optimizer_info = torch.optim.Adam(
-    itertools.chain(generator.parameters(), discriminator.parameters()), lr=opt.lr, betas=(opt.b1, opt.b2)
-)
-
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 
@@ -206,6 +199,10 @@ if cuda:
     G.cuda()
     C.cuda()
 
+# Initialize weights
+G.apply(weights_init_normal)
+C.apply(weights_init_normal)
+
 # Optimizers
 optimizer_G = torch.optim.RMSprop(G.parameters(), lr=lr)
 optimizer_C = torch.optim.RMSprop(C.parameters(), lr=lr)
@@ -261,7 +258,7 @@ for epoch in range(n_epochs):
         sampled_labels = np.random.randint(0, opt.n_classes, batch_size)
         gt_labels = Variable(LongTensor(sampled_labels), requires_grad=False)
         gen_imgs = generator(z, label_input, code_input)
-        _, pred_label, pred_code = discriminator(gen_imgs)
+        _, pred_label, pred_code = critic(gen_imgs)
         info_loss = lambda_cat * categorical_loss(pred_label, gt_labels) + lambda_con * continuous_loss(pred_code, code_input)
         info_loss.backward()
         optimizer_info.step()
