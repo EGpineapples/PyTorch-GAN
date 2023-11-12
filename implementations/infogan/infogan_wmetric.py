@@ -190,7 +190,7 @@ n_critic = 5  # Number of critic updates per generator update
 
 # Initialize generator and critic
 G = Generator()
-C = Critic(img_shape=(opt.channels, img_size, img_size))
+C = Critic(img_shape=(opt.channels, opt.img_size, opt.img_size))
 
 if cuda:
     G.cuda()
