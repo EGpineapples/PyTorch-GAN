@@ -21,7 +21,7 @@ os.makedirs("images/varying_c1/", exist_ok=True)
 os.makedirs("images/varying_c2/", exist_ok=True)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=20, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=1, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
@@ -243,6 +243,9 @@ os.makedirs(save_path, exist_ok=True)
 #  Training
 # ----------
 
+# LSGAN Loss parameters
+a, b, c = 0, 1, 1
+
 for epoch in range(opt.n_epochs):
     for i, (imgs, labels) in enumerate(dataloader):
 
@@ -271,8 +274,8 @@ for epoch in range(opt.n_epochs):
         gen_imgs = generator(z, label_input, code_input)
 
         # Loss measures generator's ability to fool the discriminator
-        validity, _, _ = discriminator(gen_imgs)
-        g_loss = adversarial_loss(validity, valid)
+        validity = discriminator(gen_imgs)[0]
+        g_loss = 0.5 * torch.mean((validity - c) ** 2)
 
         g_loss.backward()
         optimizer_G.step()
@@ -284,15 +287,13 @@ for epoch in range(opt.n_epochs):
         optimizer_D.zero_grad()
 
         # Loss for real images
-        real_pred, _, _ = discriminator(real_imgs)
-        d_real_loss = adversarial_loss(real_pred, valid)
+        real_loss = 0.5 * torch.mean((discriminator(real_imgs)[0] - b) ** 2)
 
         # Loss for fake images
-        fake_pred, _, _ = discriminator(gen_imgs.detach())
-        d_fake_loss = adversarial_loss(fake_pred, fake)
+        fake_loss = 0.5 * torch.mean((discriminator(gen_imgs.detach())[0] - a) ** 2)
 
         # Total discriminator loss
-        d_loss = (d_real_loss + d_fake_loss) / 2
+        d_loss = real_loss + fake_loss
 
         d_loss.backward()
         optimizer_D.step()
