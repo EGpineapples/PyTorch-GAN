@@ -107,10 +107,6 @@ class Critic(nn.Module):
 categorical_loss = torch.nn.CrossEntropyLoss()
 continuous_loss = torch.nn.MSELoss()
 
-# Loss weights
-lambda_cat = 1
-lambda_con = 0.1
-
 # Configure data loader
 os.makedirs("../../data/mnist", exist_ok=True)
 
@@ -187,8 +183,6 @@ def compute_gradient_penalty(critic, real_samples, fake_samples):
 # Assuming you have a generator 'G', a critic 'C', a dataset 'dataloader', and the necessary imports
 # Hyperparameters
 lr = 0.00005
-n_epochs = 100
-batch_size = 64
 lambda_gp = 10  # Gradient penalty lambda hyperparameter
 
 # Initialize generator and critic
