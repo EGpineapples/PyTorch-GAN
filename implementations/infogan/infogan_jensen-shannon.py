@@ -3,6 +3,7 @@ import os
 import numpy as np
 import math
 import itertools
+import matplotlib.pyplot as plt
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
