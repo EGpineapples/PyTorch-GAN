@@ -85,45 +85,25 @@ class Generator(nn.Module):
         img = self.conv_blocks(out)
         return img
 
-
-class Discriminator(nn.Module):
-    def __init__(self):
-        super(Discriminator, self).__init__()
-
-        def discriminator_block(in_filters, out_filters, bn=True):
-            """Returns layers of each discriminator block"""
-            block = [nn.Conv2d(in_filters, out_filters, 3, 2, 1), nn.LeakyReLU(0.2, inplace=True), nn.Dropout2d(0.25)]
-            if bn:
-                block.append(nn.BatchNorm2d(out_filters, 0.8))
-            return block
-
-        self.conv_blocks = nn.Sequential(
-            *discriminator_block(opt.channels, 16, bn=False),
-            *discriminator_block(16, 32),
-            *discriminator_block(32, 64),
-            *discriminator_block(64, 128),
+class Critic(nn.Module):
+    def __init__(self, img_shape):
+        super(Critic, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(int(np.prod(img_shape)), 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 256),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(256, 1)
         )
 
-        # The height and width of downsampled image
-        ds_size = opt.img_size // 2 ** 4
-
-        # Output layers
-        self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, 1))
-        self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, opt.n_classes), nn.Softmax())
-        self.latent_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, opt.code_dim))
-
     def forward(self, img):
-        out = self.conv_blocks(img)
-        out = out.view(out.shape[0], -1)
-        validity = self.adv_layer(out)
-        label = self.aux_layer(out)
-        latent_code = self.latent_layer(out)
+        img_flat = img.view(img.size(0), -1)
+        validity = self.model(img_flat)
+        return validity
 
-        return validity, label, latent_code
 
 
 # Loss functions
-adversarial_loss = torch.nn.MSELoss()
 categorical_loss = torch.nn.CrossEntropyLoss()
 continuous_loss = torch.nn.MSELoss()
 
@@ -138,7 +118,6 @@ discriminator = Discriminator()
 if cuda:
     generator.cuda()
     discriminator.cuda()
-    adversarial_loss.cuda()
     categorical_loss.cuda()
     continuous_loss.cuda()
 
@@ -205,133 +184,112 @@ def sample_image(n_row, batches_done):
     save_image(sample1.data, "images/varying_c1/%d.png" % batches_done, nrow=n_row, normalize=True)
     save_image(sample2.data, "images/varying_c2/%d.png" % batches_done, nrow=n_row, normalize=True)
 
-# ----------
-#  Added code
-# ----------
-
-def generate_with_style_variation(generator, style_range=(-1, 1), num_samples=10):
-    augmented_samples = []
-
-    for _ in range(num_samples):
-        # Sample noise
-        z = Variable(torch.randn(opt.latent_dim)).unsqueeze(0)
-
-        # Sample a random label (digit)
-        label = to_categorical(np.random.randint(0, opt.n_classes, 1), num_columns=opt.n_classes)
-
-        # Vary the style code within the specified range
-        style_code = np.random.uniform(style_range[0], style_range[1], (1, opt.code_dim))
-        style_code = Variable(torch.FloatTensor(style_code))
-
-        # Generate the image
-        gen_img = generator(z, label, style_code)
-        augmented_samples.append(gen_img)
-
-    return augmented_samples
-
-# Generate 10 images with varying styles
-generated_images = generate_with_style_variation(generator)
-
-# Save the generated images
-save_path = "generated_images_with_styles"
-os.makedirs(save_path, exist_ok=True)
-
-# for idx, image in enumerate(generated_images):
-#    save_image(image, os.path.join(save_path, f"image_{idx}.png"))
+def compute_gradient_penalty(critic, real_samples, fake_samples):
+    alpha = Tensor(np.random.random((real_samples.size(0), 1, 1, 1)))
+    interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
+    d_interpolates = critic(interpolates)
+    fake = Variable(Tensor(real_samples.shape[0], 1).fill_(1.0), requires_grad=False)
+    gradients = autograd.grad(
+        outputs=d_interpolates,
+        inputs=interpolates,
+        grad_outputs=fake,
+        create_graph=True,
+        retain_graph=True,
+        only_inputs=True,
+    )[0]
+    gradients = gradients.view(gradients.size(0), -1)
+    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+    return gradient_penalty
 
 # ----------
 #  Training
 # ----------
 
-for epoch in range(opt.n_epochs):
-    for i, (imgs, labels) in enumerate(dataloader):
+# Assuming you have a generator 'G', a critic 'C', a dataset 'dataloader', and the necessary imports
+# Hyperparameters
+lr = 0.00005
+n_epochs = 100
+batch_size = 64
+lambda_gp = 10  # Gradient penalty lambda hyperparameter
 
-        batch_size = imgs.shape[0]
+# Initialize generator and critic
+G = Generator()
+C = Critic(img_shape=(channels, img_size, img_size))
 
-        # Adversarial ground truths
-        valid = Variable(FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
-        fake = Variable(FloatTensor(batch_size, 1).fill_(0.0), requires_grad=False)
+if cuda:
+    G.cuda()
+    C.cuda()
+
+# Optimizers
+optimizer_G = torch.optim.RMSprop(G.parameters(), lr=lr)
+optimizer_C = torch.optim.RMSprop(C.parameters(), lr=lr)
+
+Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+
+# Training
+for epoch in range(n_epochs):
+    for i, (imgs, _) in enumerate(dataloader):
 
         # Configure input
-        real_imgs = Variable(imgs.type(FloatTensor))
-        labels = to_categorical(labels.numpy(), num_columns=opt.n_classes)
+        real_imgs = Variable(imgs.type(Tensor))
 
-        # -----------------
-        #  Train Generator
-        # -----------------
+        # ---------------------
+        #  Train Critic
+        # ---------------------
+        optimizer_C.zero_grad()
+
+        # Generate a batch of images
+        z = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], latent_dim))))
+        fake_imgs = G(z).detach()
+        # Real images
+        real_validity = C(real_imgs)
+        # Fake images
+        fake_validity = C(fake_imgs)
+        # Gradient penalty
+        gradient_penalty = compute_gradient_penalty(C, real_imgs.data, fake_imgs.data)
+        # Adversarial loss
+        d_loss = -torch.mean(real_validity) + torch.mean(fake_validity) + lambda_gp * gradient_penalty
+
+        d_loss.backward()
+        optimizer_C.step()
 
         optimizer_G.zero_grad()
 
-        # Sample noise and labels as generator input
-        z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
-        label_input = to_categorical(np.random.randint(0, opt.n_classes, batch_size), num_columns=opt.n_classes)
-        code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.code_dim))))
+        # Train the generator every n_critic steps
+        if i % n_critic == 0:
+            # -----------------
+            #  Train Generator
+            # -----------------
+            # Generate a batch of images
+            gen_imgs = G(z)
+            # Loss measures generator's ability to fool the critic
+            g_loss = -torch.mean(C(gen_imgs))
 
-        # Generate a batch of images
-        gen_imgs = generator(z, label_input, code_input)
-
-        # Loss measures generator's ability to fool the discriminator
-        validity, _, _ = discriminator(gen_imgs)
-        g_loss = adversarial_loss(validity, valid)
-
-        g_loss.backward()
-        optimizer_G.step()
-
-        # ---------------------
-        #  Train Discriminator
-        # ---------------------
-
-        optimizer_D.zero_grad()
-
-        # Loss for real images
-        real_pred, _, _ = discriminator(real_imgs)
-        d_real_loss = adversarial_loss(real_pred, valid)
-
-        # Loss for fake images
-        fake_pred, _, _ = discriminator(gen_imgs.detach())
-        d_fake_loss = adversarial_loss(fake_pred, fake)
-
-        # Total discriminator loss
-        d_loss = (d_real_loss + d_fake_loss) / 2
-
-        d_loss.backward()
-        optimizer_D.step()
+            g_loss.backward()
+            optimizer_G.step()
 
         # ------------------
         # Information Loss
         # ------------------
-
         optimizer_info.zero_grad()
-
-        # Sample labels
         sampled_labels = np.random.randint(0, opt.n_classes, batch_size)
-
-        # Ground truth labels
         gt_labels = Variable(LongTensor(sampled_labels), requires_grad=False)
-
-        # Sample noise, labels and code as generator input
-        z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
-        label_input = to_categorical(sampled_labels, num_columns=opt.n_classes)
-        code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.code_dim))))
-
         gen_imgs = generator(z, label_input, code_input)
         _, pred_label, pred_code = discriminator(gen_imgs)
-
-        info_loss = lambda_cat * categorical_loss(pred_label, gt_labels) + lambda_con * continuous_loss(
-            pred_code, code_input
-        )
-
+        info_loss = lambda_cat * categorical_loss(pred_label, gt_labels) + lambda_con * continuous_loss(pred_code, code_input)
         info_loss.backward()
         optimizer_info.step()
 
-        # --------------
         # Log Progress
-        # --------------
+        print(f"[Epoch {epoch}/{opt.n_epochs}] [Batch {i}/{len(dataloader)}] [D loss: {d_loss.item()}] [G loss: {g_loss.item()}] [Info loss: {info_loss.item()}] [JS Div: {js_div.item()}]")
 
-        print(
-            "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f] [info loss: %f]"
-            % (epoch, opt.n_epochs, i, len(dataloader), d_loss.item(), g_loss.item(), info_loss.item())
-        )
         batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
             sample_image(n_row=10, batches_done=batches_done)
+
+        
+        print(f"[Epoch {epoch}/{n_epochs}] [Batch {i}/{len(dataloader)}] [D loss: {d_loss.item()}] [G loss: {g_loss.item()}]")
+
+        batches_done = epoch * len(dataloader) + i
+        if batches_done % sample_interval == 0:
+            save_image(gen_imgs.data[:25], "images/%d.png" % batches_done, nrow=5, normalize=True)
