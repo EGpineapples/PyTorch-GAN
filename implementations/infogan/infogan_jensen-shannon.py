@@ -276,14 +276,27 @@ os.makedirs(save_path, exist_ok=True)
 #    save_image(image, os.path.join(save_path, f"image_{idx}.png"))
 
 # ----------
+#  Loss Function - Jensen-Shannon Divergence (JS)
+# ----------
+
+# Function to calculate JS Divergence
+def js_divergence(real_scores, fake_scores):
+    M = (real_scores + fake_scores) / 2
+    js_div = 0.5 * F.kl_div(real_scores.log(), M, reduction='batchmean') + \
+             0.5 * F.kl_div(fake_scores.log(), M, reduction='batchmean')
+    return js_div
+
+# ----------
 #  Training
 # ----------
 
+# Training loop
+js_divergences = []  # List to store JS divergence values
 g_losses = []
 d_losses = []
+
 for epoch in range(opt.n_epochs):
     for i, (imgs, labels) in enumerate(dataloader):
-
         batch_size = imgs.shape[0]
 
         # Adversarial ground truths
@@ -297,95 +310,72 @@ for epoch in range(opt.n_epochs):
         # -----------------
         #  Train Generator
         # -----------------
-
         optimizer_G.zero_grad()
-
-        # Sample noise and labels as generator input
         z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
         label_input = to_categorical(np.random.randint(0, opt.n_classes, batch_size), num_columns=opt.n_classes)
         code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.code_dim))))
-
-        # Generate a batch of images
         gen_imgs = generator(z, label_input, code_input)
-
-        # Loss measures generator's ability to fool the discriminator
-        validity, _, _ = discriminator(gen_imgs)
+        validity = discriminator(gen_imgs)[0]
         g_loss = adversarial_loss(validity, valid)
-
         g_loss.backward()
         optimizer_G.step()
 
         # ---------------------
         #  Train Discriminator
         # ---------------------
-
         optimizer_D.zero_grad()
-
-        # Loss for real images
-        real_pred, _, _ = discriminator(real_imgs)
+        real_pred = discriminator(real_imgs)[0]
+        fake_pred = discriminator(gen_imgs.detach())[0]
         d_real_loss = adversarial_loss(real_pred, valid)
-
-        # Loss for fake images
-        fake_pred, _, _ = discriminator(gen_imgs.detach())
         d_fake_loss = adversarial_loss(fake_pred, fake)
-
-        # Total discriminator loss
         d_loss = (d_real_loss + d_fake_loss) / 2
-
         d_loss.backward()
         optimizer_D.step()
+
+        # Calculate JS Divergence
+        real_scores = torch.sigmoid(real_pred)
+        fake_scores = torch.sigmoid(fake_pred)
+        js_div = 0.5 * (F.kl_div(real_scores.log(), (real_scores + fake_scores) / 2, reduction='batchmean') +
+                        F.kl_div(fake_scores.log(), (real_scores + fake_scores) / 2, reduction='batchmean'))
+        js_divergences.append(js_div.item())
 
         g_losses.append(g_loss.item())
         d_losses.append(d_loss.item())
 
-
         # ------------------
         # Information Loss
         # ------------------
-
         optimizer_info.zero_grad()
-
-        # Sample labels
         sampled_labels = np.random.randint(0, opt.n_classes, batch_size)
-
-        # Ground truth labels
         gt_labels = Variable(LongTensor(sampled_labels), requires_grad=False)
-
-        # Sample noise, labels and code as generator input
-        z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
-        label_input = to_categorical(sampled_labels, num_columns=opt.n_classes)
-        code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.code_dim))))
-
         gen_imgs = generator(z, label_input, code_input)
         _, pred_label, pred_code = discriminator(gen_imgs)
-
-        info_loss = lambda_cat * categorical_loss(pred_label, gt_labels) + lambda_con * continuous_loss(
-            pred_code, code_input
-        )
-
+        info_loss = lambda_cat * categorical_loss(pred_label, gt_labels) + lambda_con * continuous_loss(pred_code, code_input)
         info_loss.backward()
         optimizer_info.step()
 
-        # --------------
         # Log Progress
-        # --------------
+        print(f"[Epoch {epoch}/{opt.n_epochs}] [Batch {i}/{len(dataloader)}] [D loss: {d_loss.item()}] [G loss: {g_loss.item()}] [Info loss: {info_loss.item()}] [JS Div: {js_div.item()}]")
 
-        print(
-            "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f] [info loss: %f]"
-            % (epoch, opt.n_epochs, i, len(dataloader), d_loss.item(), g_loss.item(), info_loss.item())
-        )
-        batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
             sample_image(n_row=10, batches_done=batches_done)
 
-import matplotlib.pyplot as plt
+# Plot JS Divergence
+plt.figure(figsize=(10,5))
+plt.title("JS Divergence During Training")
+plt.plot(js_divergences)
+plt.xlabel("Iterations")
+plt.ylabel("JS Divergence")
+plt.show()
 
+# Plot G and D losses
 plt.figure(figsize=(10,5))
 plt.title("Generator and Discriminator Loss During Training")
-plt.plot(g_losses,label="G")
-plt.plot(d_losses,label="D")
-plt.xlabel("iterations")
+plt.plot(g_losses, label="G")
+plt.plot(d_losses, label="D")
+plt.xlabel("Iterations")
 plt.ylabel("Loss")
 plt.legend()
 plt.show()
+
 
