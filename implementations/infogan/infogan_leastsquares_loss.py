@@ -21,7 +21,7 @@ os.makedirs("images/varying_c1/", exist_ok=True)
 os.makedirs("images/varying_c2/", exist_ok=True)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=1, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
@@ -160,7 +160,7 @@ mnist_dataset = datasets.MNIST(
 
 # Let's say you want to use only 10% of the dataset:
 num_samples = len(mnist_dataset)
-subset_indices = np.random.choice(range(num_samples), size=int(0.1 * num_samples), replace=False)
+subset_indices = np.random.choice(range(num_samples), size=int(1 * num_samples), replace=False)
 
 mnist_subset = Subset(mnist_dataset, subset_indices)
 
