@@ -344,7 +344,6 @@ for epoch in range(opt.n_epochs):
             sample_image(n_row=10, batches_done=batches_done)
 
 # Plot G and D losses
-plt.ion()  # Enable interactive mode
 plt.figure(figsize=(10,5))
 plt.title("Generator and Discriminator Loss During Training")
 plt.plot(g_losses, label="G")
