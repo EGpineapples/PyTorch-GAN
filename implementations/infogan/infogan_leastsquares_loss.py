@@ -6,7 +6,7 @@ import itertools
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
+from pytorch_fid.fid_score import calculate_fid_given_paths
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
@@ -243,6 +243,14 @@ os.makedirs(save_path, exist_ok=True)
 # for idx, image in enumerate(generated_images):
 #    save_image(image, os.path.join(save_path, f"image_{idx}.png"))
 
+def calculate_fid(real_img_path, generated_img_path):
+    fid_value = calculate_fid_given_paths([real_img_path, generated_img_path],
+                                          batch_size=opt.batch_size,
+                                          cuda=cuda,
+                                          dims=2048)
+    print(f"FID score: {fid_value}")
+    return fid_value
+
 # ----------
 #  Training
 # ----------
@@ -346,6 +354,17 @@ for epoch in range(opt.n_epochs):
         if batches_done % opt.sample_interval == 0:
             sample_image(n_row=10, batches_done=batches_done)
 
+real_images_path = "../../data/mnist/real_images"  # Update this path according to your real images directory
+generated_images_path = "../../data/mnist/generated_images"  # The directory you used to save generated images
+    
+os.makedirs(real_images_path, exist_ok=True)
+os.makedirs(generated_images_path, exist_ok=True)
+
+# After training is done
+if epoch == opt.n_epochs - 1:
+    # Calculate FID score after the last epoch
+    calculate_fid(real_images_path, generated_images_path)
+    
 # Plot G and D losses
 plt.figure(figsize=(10,5))
 plt.title("Generator and Discriminator Loss During Training")
