@@ -353,3 +353,6 @@ plt.xlabel("Iterations")
 plt.ylabel("Loss")
 plt.legend()
 plt.show()
+
+# Save the figure to the current directory
+plt.savefig('gan_loss_plot.png')
