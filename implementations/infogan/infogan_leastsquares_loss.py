@@ -3,7 +3,10 @@ import os
 import numpy as np
 import math
 import itertools
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
@@ -353,5 +356,10 @@ plt.ylabel("Loss")
 plt.legend()
 plt.show()
 
-# Save the figure to the current directory
+# Save the figure
 plt.savefig('gan_loss_plot.png')
+plt.close()  # Close the plot to ensure it's saved without issues
+
+# Display the saved image
+from IPython.display import Image
+Image('gan_loss_plot.png')
