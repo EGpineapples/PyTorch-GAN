@@ -246,10 +246,11 @@ os.makedirs(save_path, exist_ok=True)
 def calculate_fid(real_img_path, generated_img_path):
     fid_value = calculate_fid_given_paths([real_img_path, generated_img_path],
                                           batch_size=opt.batch_size,
-                                          cuda=cuda,
+                                          device='cuda' if cuda else 'cpu',
                                           dims=2048)
     print(f"FID score: {fid_value}")
     return fid_value
+
 
 # ----------
 #  Training
