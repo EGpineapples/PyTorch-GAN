@@ -161,7 +161,7 @@ mnist_dataset = datasets.MNIST(
 
 # Let's say you want to use only 10% of the dataset:
 num_samples = len(mnist_dataset)
-subset_indices = np.random.choice(range(num_samples), size=int(1 * num_samples), replace=False)
+subset_indices = np.random.choice(range(num_samples), size=int(0.1 * num_samples), replace=False)
 
 mnist_subset = Subset(mnist_dataset, subset_indices)
 
