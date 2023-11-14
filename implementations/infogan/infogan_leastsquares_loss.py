@@ -245,6 +245,8 @@ os.makedirs(save_path, exist_ok=True)
 
 # LSGAN Loss parameters
 a, b, c = 0, 1, 1
+g_losses = []
+d_losses = []
 
 for epoch in range(opt.n_epochs):
     for i, (imgs, labels) in enumerate(dataloader):
@@ -324,6 +326,9 @@ for epoch in range(opt.n_epochs):
 
         info_loss.backward()
         optimizer_info.step()
+
+        g_losses.append(g_loss.item())
+        d_losses.append(d_loss.item())
 
         # --------------
         # Log Progress
